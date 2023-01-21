@@ -32,7 +32,6 @@ func NewClient(addr, username, password string, tcpTimeout, udpTimeout int) (*Cl
 		TCPTimeout: tcpTimeout,
 		UDPTimeout: udpTimeout,
 	}
-	c.Password = "WORKS"
 	return c, nil
 }
 
