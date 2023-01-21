@@ -1,4 +1,4 @@
-module github.com/robertmin1/socks5/v3
+module github.com/robertmin1/socks5
 
 go 1.16
 
