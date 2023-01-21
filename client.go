@@ -2,6 +2,7 @@ package socks5
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"time"
 )
@@ -12,7 +13,7 @@ type Client struct {
 	UserName string
 	Password string
 	// On cmd UDP, let server control the tcp and udp connection relationship
-	TCPConn       *net.TCPConn
+	TCPConn       net.Conn
 	UDPConn       *net.UDPConn
 	RemoteAddress net.Addr
 	TCPTimeout    int
@@ -25,6 +26,7 @@ type Client struct {
 
 // This is just create a client, you need to use Dial to create conn
 func NewClient(addr, username, password string, tcpTimeout, udpTimeout int) (*Client, error) {
+	fmt.Printf("Making a new client:\n")
 	c := &Client{
 		Server:     addr,
 		UserName:   username,
@@ -35,11 +37,11 @@ func NewClient(addr, username, password string, tcpTimeout, udpTimeout int) (*Cl
 	return c, nil
 }
 
-func (c *Client) Dial(network, addr string) (net.Conn, error) {
-	return c.DialWithLocalAddr(network, "", addr, nil)
+func (c *Client) Dial(network, addr string, conn net.Conn) (net.Conn, error) {
+	return c.DialWithLocalAddr(network, "", addr, nil, conn)
 }
 
-func (c *Client) DialWithLocalAddr(network, src, dst string, remoteAddr net.Addr) (net.Conn, error) {
+func (c *Client) DialWithLocalAddr(network, src, dst string, remoteAddr net.Addr, conn net.Conn) (net.Conn, error) {
 	c = &Client{
 		Server:              c.Server,
 		UserName:            c.UserName,
@@ -49,6 +51,7 @@ func (c *Client) DialWithLocalAddr(network, src, dst string, remoteAddr net.Addr
 		RemoteAddress:       remoteAddr,
 		HijackServerUDPAddr: c.HijackServerUDPAddr,
 	}
+	c.TCPConn = conn
 	var err error
 	if network == "tcp" {
 		if c.RemoteAddress == nil {
@@ -228,19 +231,22 @@ func (c *Client) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *Client) Negotiate(laddr *net.TCPAddr) error {
-	raddr, err := net.ResolveTCPAddr("tcp", c.Server)
-	if err != nil {
-		return err
-	}
-	c.TCPConn, err = Dial.DialTCP("tcp", laddr, raddr)
-	if err != nil {
-		return err
-	}
-	if c.TCPTimeout != 0 {
-		if err := c.TCPConn.SetDeadline(time.Now().Add(time.Duration(c.TCPTimeout) * time.Second)); err != nil {
+	if c.TCPConn == nil {
+		raddr, err := net.ResolveTCPAddr("tcp", c.Server)
+		if err != nil {
 			return err
 		}
+		c.TCPConn, err = Dial.DialTCP("tcp", laddr, raddr)
+		if err != nil {
+			return err
+		}
+		if c.TCPTimeout != 0 {
+			if err := c.TCPConn.SetDeadline(time.Now().Add(time.Duration(c.TCPTimeout) * time.Second)); err != nil {
+				return err
+			}
+		}
 	}
+	
 	m := MethodNone
 	if c.UserName != "" && c.Password != "" {
 		m = MethodUsernamePassword
@@ -281,7 +287,8 @@ func (c *Client) Request(r *Request) (*Reply, error) {
 		return nil, err
 	}
 	if rp.Rep != RepSuccess {
-		return nil, errors.New("Host unreachable")
+		fmt.Println(rp.Rep)
+		return nil, errors.New("host unreachable")
 	}
 	return rp, nil
 }
