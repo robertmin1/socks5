@@ -26,7 +26,6 @@ type Client struct {
 
 // This is just create a client, you need to use Dial to create conn
 func NewClient(addr, username, password string, tcpTimeout, udpTimeout int) (*Client, error) {
-	fmt.Printf("Making a new client:\n")
 	c := &Client{
 		Server:     addr,
 		UserName:   username,
